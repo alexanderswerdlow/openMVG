@@ -28,7 +28,6 @@ using namespace openMVG;
 using namespace openMVG::image;
 using namespace openMVG::matching;
 using namespace openMVG::features;
-using namespace svg;
 using namespace std;
 
 #include "openMVG/features/regions_factory_io.hpp"
@@ -36,12 +35,12 @@ using namespace std;
 int main(int argc, char** argv) {
   CmdLine cmd;
 
-  std::string sImg1 = stlplus::folder_up(string(THIS_SOURCE_DIR)) + "/imageData/StanfordMobileVisualSearch/Ace_0.png";
-  std::string sImg2 = stlplus::folder_up(string(THIS_SOURCE_DIR)) + "/imageData/StanfordMobileVisualSearch/Ace_1.png";
-  std::string sOutDir = "./kvldOut";
+  std::string sImg1;
+  std::string sImg2;
+  std::string sOutDir = ".";
   std::string debug_ = "0";
   std::string feature_ = "default";
-  std::cout << sImg1 << std::endl << sImg2 << std::endl;
+  // std::cout << sImg1 << std::endl << sImg2 << std::endl;
   cmd.add(make_option('i', sImg1, "img1"));
   cmd.add(make_option('j', sImg2, "img2"));
   cmd.add(make_option('o', sOutDir, "outdir"));
@@ -62,13 +61,6 @@ int main(int argc, char** argv) {
     }
   }
 
-  // std::cout << " You called : " << std::endl << argv[0] << std::endl << "--img1 " << sImg1 << std::endl << "--img2 " << sImg2 << std::endl << "--outdir " << sOutDir << std::endl;
-
-  if (sOutDir.empty()) {
-    std::cerr << "\nIt is an invalid output directory" << std::endl;
-    return EXIT_FAILURE;
-  }
-
   int debug = stoi(debug_);
 
   // -----------------------------
@@ -78,9 +70,6 @@ int main(int argc, char** argv) {
   // d. Geometric filtering of putatives matches
   // e. Export some statistics
   // -----------------------------
-
-  // Create output dir
-  if (!stlplus::folder_exists(sOutDir)) stlplus::folder_create(sOutDir);
 
   const string jpg_filenameL = sImg1;
   const string jpg_filenameR = sImg2;
@@ -109,35 +98,11 @@ int main(int argc, char** argv) {
 
   // cout << featsL.size() << " " << featsR.size() << endl;
 
-  auto end1 = std::chrono::system_clock::now();
-  std::chrono::duration<double> elapsed_seconds = end1 - start;
-  // std::cout << "elapsed time: " << elapsed_seconds.count() << "s\n";
-
-  // Show both images side by side
-  if (debug) {
-    {
-      Image<unsigned char> concat;
-      ConcatH(imageL, imageR, concat);
-      string out_filename = "00_images.jpg";
-      WriteImage(out_filename.c_str(), concat);
-    }
-
-    //- Draw features on the two image (side by side)
-
-    { Features2SVG(jpg_filenameL, {imageL.Width(), imageL.Height()}, regionsL->Features(), jpg_filenameR, {imageR.Width(), imageR.Height()}, regionsR->Features(), "01_features.svg"); }
-  }
-
   std::vector<IndMatch> vec_PutativeMatches;
   //-- Perform matching -> find Nearest neighbor, filtered with Distance ratio
   {
     // Find corresponding points
     matching::DistanceRatioMatch(0.8, matching::BRUTE_FORCE_L2, *regions_perImage.at(0).get(), *regions_perImage.at(1).get(), vec_PutativeMatches);
-
-    // Draw correspondences after Nearest Neighbor ratio filter
-    if (debug) {
-      const bool bVertical = true;
-      Matches2SVG(jpg_filenameL, {imageL.Width(), imageL.Height()}, regionsL->GetRegionsPositions(), jpg_filenameR, {imageR.Width(), imageR.Height()}, regionsR->GetRegionsPositions(), vec_PutativeMatches, "02_Matches.svg", bVertical, std::max(std::max(imageL.Width(), imageL.Height()) / float(600), 2.0f));
-    }
   }
 
   // K-VLD filter
@@ -167,16 +132,10 @@ int main(int argc, char** argv) {
     it_num++;
   }
 
-  auto end2 = std::chrono::system_clock::now();
-  std::chrono::duration<double> elapsed_seconds1 = end2 - start;
-  // std::cout << "elapsed time: " << elapsed_seconds1.count() << std::endl;
-
   std::vector<IndMatch> vec_FilteredMatches;
   for (std::vector<Pair>::const_iterator i_matchFilter = matchesFiltered.begin(); i_matchFilter != matchesFiltered.end(); ++i_matchFilter) {
     vec_FilteredMatches.push_back(IndMatch(i_matchFilter->first, i_matchFilter->second));
   }
-
-  // std::cout << "Found " << vec_FilteredMatches.size() << " matches" << std::endl;
 
   // Export
   if (!vec_FilteredMatches.empty()) {
@@ -187,79 +146,6 @@ int main(int argc, char** argv) {
       const features::PointFeature& R = featsR[match_it.j_];
       auto output_str = std::to_string(L.x()) + "," + std::to_string(L.y()) + "," + std::to_string(R.x()) + "," + std::to_string(R.y());
       cout << "m:" << output_str << endl;
-    }
-  }
-
-  // Print K-VLD consistent matches
-  if (debug) {
-    {
-      svgDrawer svgStream(imageL.Width() + imageR.Width(), max(imageL.Height(), imageR.Height()));
-
-      // ".svg"
-      svgStream.drawImage(jpg_filenameL, imageL.Width(), imageL.Height());
-      svgStream.drawImage(jpg_filenameR, imageR.Width(), imageR.Height(), imageL.Width());
-
-      for (size_t it1 = 0; it1 < matchesPair.size() - 1; it1++) {
-        for (size_t it2 = it1 + 1; it2 < matchesPair.size(); it2++) {
-          if (valid[it1] && valid[it2] && E(it1, it2) >= 0) {
-            const PointFeature& l1 = featsL[matchesPair[it1].first];
-            const PointFeature& r1 = featsR[matchesPair[it1].second];
-
-            const PointFeature& l2 = featsL[matchesPair[it2].first];
-            const PointFeature& r2 = featsR[matchesPair[it2].second];
-
-            // Compute the width of the current VLD segment
-            float L = (l1.coords() - l2.coords()).norm();
-            float width = std::max(1.f, L / (dimension + 1.f));
-
-            // ".svg"
-            svgStream.drawLine(l1.x(), l1.y(), l2.x(), l2.y(), svgStyle().stroke("yellow", width));
-            svgStream.drawLine(r1.x() + imageL.Width(), r1.y(), r2.x() + imageL.Width(), r2.y(), svgStyle().stroke("yellow", width));
-          }
-        }
-      }
-      const string out_filename = stlplus::create_filespec(sOutDir, "03_KVLD_Matches.svg");
-      ofstream svgFile(out_filename.c_str());
-      svgFile << svgStream.closeSvgFile().str();
-      svgFile.close();
-    }
-
-    {
-      // Print keypoints kept by K-VLD
-      svgDrawer svgStream(imageL.Width() + imageR.Width(), max(imageL.Height(), imageR.Height()));
-
-      // ".svg"
-      svgStream.drawImage(jpg_filenameL, imageL.Width(), imageL.Height());
-      svgStream.drawImage(jpg_filenameR, imageR.Width(), imageR.Height(), imageL.Width());
-
-      for (size_t it = 0; it < matchesPair.size(); it++) {
-        if (valid[it]) {
-          const PointFeature& l = featsL[matchesPair[it].first];
-          const PointFeature& r = featsR[matchesPair[it].second];
-
-          // ".svg"
-          svgStream.drawCircle(l.x(), l.y(), 10, svgStyle().stroke("yellow", 2.0));
-          svgStream.drawCircle(r.x() + imageL.Width(), r.y(), 10, svgStyle().stroke("yellow", 2.0));
-        }
-      }
-      const string out_filename = stlplus::create_filespec(sOutDir, "04_KVLD_Keypoints.svg");
-      ofstream svgFile(out_filename.c_str());
-      svgFile << svgStream.closeSvgFile().str();
-      svgFile.close();
-    }
-
-    Image<unsigned char> imageOutL = imageL;
-    Image<unsigned char> imageOutR = imageR;
-
-    getKVLDMask(&imageOutL, &imageOutR, regionsL->Features(), regionsR->Features(), matchesPair, valid, E);
-
-    {
-      const string out_filename = stlplus::create_filespec(sOutDir, "05_Left-K-VLD-MASK.jpg");
-      WriteImage(out_filename.c_str(), imageOutL);
-    }
-    {
-      const string out_filename = stlplus::create_filespec(sOutDir, "06_Right-K-VLD-MASK.jpg");
-      WriteImage(out_filename.c_str(), imageOutR);
     }
   }
 
