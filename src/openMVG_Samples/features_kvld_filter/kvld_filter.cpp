@@ -43,9 +43,6 @@ int main(int argc, char** argv) {
   // std::cout << sImg1 << std::endl << sImg2 << std::endl;
   cmd.add(make_option('i', sImg1, "img1"));
   cmd.add(make_option('j', sImg2, "img2"));
-  cmd.add(make_option('o', sOutDir, "outdir"));
-  cmd.add(make_option('d', debug_, "debug"));
-  cmd.add(make_option('f', feature_, "feature"));
 
   if (argc > 1) {
     try {
@@ -61,8 +58,6 @@ int main(int argc, char** argv) {
     }
   }
 
-  int debug = stoi(debug_);
-
   // -----------------------------
   // a. List images
   // b. Compute features and descriptor
@@ -77,8 +72,6 @@ int main(int argc, char** argv) {
   Image<unsigned char> imageL, imageR;
   ReadImage(jpg_filenameL.c_str(), &imageL);
   ReadImage(jpg_filenameR.c_str(), &imageR);
-
-  auto start = std::chrono::system_clock::now();
 
   //--
   // Detect regions thanks to an image_describer
@@ -139,9 +132,7 @@ int main(int argc, char** argv) {
 
   // Export
   if (!vec_FilteredMatches.empty()) {
-    // std::string input;
     for (const auto match_it : vec_FilteredMatches) {
-      // Get back linked features
       const features::PointFeature& L = featsL[match_it.i_];
       const features::PointFeature& R = featsR[match_it.j_];
       auto output_str = std::to_string(L.x()) + "," + std::to_string(L.y()) + "," + std::to_string(R.x()) + "," + std::to_string(R.y());
