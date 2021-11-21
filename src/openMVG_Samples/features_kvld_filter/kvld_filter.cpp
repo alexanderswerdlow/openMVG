@@ -74,8 +74,10 @@ int main(int argc, char** argv) {
   //--
   using namespace openMVG::features;
 
+  auto start = std::chrono::system_clock::now();
   std::unique_ptr<Image_describer> image_describer;
   image_describer = std::unique_ptr<Image_describer>(new SIFT_Anatomy_Image_describer(SIFT_Anatomy_Image_describer::Params(-1)));
+  image_describer->Set_configuration_preset(ULTRA_PRESET);
   std::map<IndexT, std::unique_ptr<features::Regions>> regions_perImage;
   image_describer->Describe(imageL, regions_perImage[0]);
   image_describer->Describe(imageR, regions_perImage[1]);
@@ -84,8 +86,10 @@ int main(int argc, char** argv) {
   const SIFT_Regions* regionsR = dynamic_cast<SIFT_Regions*>(regions_perImage.at(1).get());
 
   const PointFeatures featsL = regions_perImage.at(0)->GetRegionsPositions(), featsR = regions_perImage.at(1)->GetRegionsPositions();
-
-  // cout << featsL.size() << " " << featsR.size() << endl;
+  auto end = std::chrono::system_clock::now();
+  std::chrono::duration<double> diff = end - start;
+  auto debug_out = "Found " + std::to_string(featsL.size()) + " matches for L and " + std::to_string(featsR.size()) + " matches for R in " + std::to_string(diff.count()) + " seconds";
+  cout << debug_out << endl;
 
   std::vector<IndMatch> vec_PutativeMatches;
   //-- Perform matching -> find Nearest neighbor, filtered with Distance ratio
