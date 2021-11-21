@@ -37,10 +37,6 @@ int main(int argc, char** argv) {
 
   std::string sImg1;
   std::string sImg2;
-  std::string sOutDir = ".";
-  std::string debug_ = "0";
-  std::string feature_ = "default";
-  // std::cout << sImg1 << std::endl << sImg2 << std::endl;
   cmd.add(make_option('i', sImg1, "img1"));
   cmd.add(make_option('j', sImg2, "img2"));
 
