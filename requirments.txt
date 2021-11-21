@@ -1,0 +1,12 @@
+gpxpy
+matplotlib
+numpy
+Pillow
+pyproj
+requests
+requests-cache
+scipy
+imutils
+xmltodict
+imageio
+pandas
